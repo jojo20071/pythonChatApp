@@ -1,6 +1,8 @@
 import curses
 import logging
 import os
+import socket
+import threading
 
 def setup_logging():
     if not os.path.exists('logs'):
@@ -15,6 +17,15 @@ def authenticate_user(input_window, width):
     username = input_window.getstr(1, 18, width - 19).decode('utf-8')
     logging.info(f"User '{username}' logged in.")
     return username
+
+def receive_messages(sock, chat_window):
+    while True:
+        try:
+            msg = sock.recv(1024).decode('utf-8')
+            chat_window.addstr(msg + "\n")
+            chat_window.refresh()
+        except:
+            break
 
 def main(stdscr):
     curses.curs_set(1)
@@ -33,10 +44,14 @@ def main(stdscr):
     status_window.border()
 
     username = authenticate_user(input_window, width)
-
     user_info = f"Logged in as: {username}"
     status_window.addstr(1, 1, user_info)
     status_window.refresh()
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("localhost", 12345))
+
+    threading.Thread(target=receive_messages, args=(sock, chat_window), daemon=True).start()
 
     while True:
         input_window.clear()
@@ -48,11 +63,17 @@ def main(stdscr):
         if msg.lower() == "/exit":
             logging.info(f"User '{username}' exited the chat.")
             break
-
-        formatted_msg = f"{username}: {msg}"
+        elif msg.startswith("/whisper "):
+            target, private_msg = msg[9:].split(' ', 1)
+            formatted_msg = f"(Private) {username} to {target}: {private_msg}"
+        else:
+            formatted_msg = f"{username}: {msg}"
+        
+        sock.sendall(formatted_msg.encode('utf-8'))
         logging.info(formatted_msg)
-
+        
         chat_window.addstr(formatted_msg + "\n")
         chat_window.refresh()
 
 curses.wrapper(main)
+sock.close()
