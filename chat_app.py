@@ -28,6 +28,17 @@ def receive_messages(sock, chat_window):
         except:
             break
 
+def display_help(chat_window):
+    help_text = (
+        "/exit - Exit the chat\n"
+        "/help - Display this help message\n"
+        "/whisper [user] [message] - Send a private message to a user\n"
+        "/join [room] - Join a different chat room\n"
+        "/list - List all available chat rooms\n"
+    )
+    chat_window.addstr(help_text)
+    chat_window.refresh()
+
 def main(stdscr):
     curses.curs_set(1)
     stdscr.clear()
@@ -68,6 +79,9 @@ def main(stdscr):
         if msg.lower() == "/exit":
             logging.info(f"User '{username}' exited the chat.")
             break
+        elif msg.lower() == "/help":
+            display_help(chat_window)
+            continue
         elif msg.startswith("/whisper "):
             target, private_msg = msg[9:].split(' ', 1)
             formatted_msg = f"(Private) {username} to {target}: {private_msg}"
@@ -76,6 +90,8 @@ def main(stdscr):
             status_window.addstr(2, 1, f"Chat Room: {chat_room}")
             status_window.refresh()
             formatted_msg = f"{username} joined {chat_room}"
+        elif msg.lower() == "/list":
+            formatted_msg = "Available chat rooms: Main, Sports, Movies, Technology"
         else:
             timestamp = datetime.datetime.now().strftime("%H:%M:%S")
             formatted_msg = f"[{timestamp}] {username} ({chat_room}): {msg}"
