@@ -3,6 +3,7 @@ import logging
 import os
 import socket
 import threading
+import datetime
 
 def setup_logging():
     if not os.path.exists('logs'):
@@ -48,6 +49,10 @@ def main(stdscr):
     status_window.addstr(1, 1, user_info)
     status_window.refresh()
 
+    chat_room = "Main"
+    status_window.addstr(2, 1, f"Chat Room: {chat_room}")
+    status_window.refresh()
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("localhost", 12345))
 
@@ -66,8 +71,14 @@ def main(stdscr):
         elif msg.startswith("/whisper "):
             target, private_msg = msg[9:].split(' ', 1)
             formatted_msg = f"(Private) {username} to {target}: {private_msg}"
+        elif msg.startswith("/join "):
+            chat_room = msg[6:]
+            status_window.addstr(2, 1, f"Chat Room: {chat_room}")
+            status_window.refresh()
+            formatted_msg = f"{username} joined {chat_room}"
         else:
-            formatted_msg = f"{username}: {msg}"
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            formatted_msg = f"[{timestamp}] {username} ({chat_room}): {msg}"
         
         sock.sendall(formatted_msg.encode('utf-8'))
         logging.info(formatted_msg)
