@@ -9,6 +9,8 @@ def main(stdscr):
     chat_window = curses.newwin(height - 3, width, 0, 0)
     input_window = curses.newwin(3, width, height - 3, 0)
 
+    chat_history = []
+
     while True:
         input_window.clear()
         input_window.addstr(1, 1, "Type your message: ")
@@ -19,7 +21,9 @@ def main(stdscr):
         if msg.lower() == "/exit":
             break
 
-        chat_window.addstr(f"You: {msg}\n")
+        chat_history.append(f"You: {msg}")
+        chat_window.clear()
+        chat_window.addstr("\n".join(chat_history) + "\n")
         chat_window.refresh()
 
 curses.wrapper(main)
