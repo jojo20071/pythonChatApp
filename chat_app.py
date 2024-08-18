@@ -29,7 +29,7 @@ def main(stdscr):
     threading.Thread(target=receive_messages, args=(sock, chat_window, chat_history), daemon=True).start()
 
     username = "You"
-    
+
     while True:
         input_window.clear()
         input_window.addstr(1, 1, "Type your message: ")
@@ -39,10 +39,13 @@ def main(stdscr):
 
         if msg.lower() == "/exit":
             break
-
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        chat_history.append(f"[{timestamp}] {username}: {msg}")
-        sock.sendall(msg.encode('utf-8'))
+        elif msg.lower() == "/help":
+            chat_history.append("Commands: /exit, /help")
+        else:
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            chat_history.append(f"[{timestamp}] {username}: {msg}")
+            sock.sendall(msg.encode('utf-8'))
+        
         chat_window.clear()
         chat_window.addstr("\n".join(chat_history) + "\n")
         chat_window.refresh()
