@@ -1,11 +1,13 @@
 import curses
 import socket
 import threading
+import datetime
 
 def receive_messages(sock, chat_window, chat_history):
     while True:
         msg = sock.recv(1024).decode('utf-8')
-        chat_history.append(f"Friend: {msg}")
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        chat_history.append(f"[{timestamp}] Friend: {msg}")
         chat_window.clear()
         chat_window.addstr("\n".join(chat_history) + "\n")
         chat_window.refresh()
@@ -26,6 +28,8 @@ def main(stdscr):
 
     threading.Thread(target=receive_messages, args=(sock, chat_window, chat_history), daemon=True).start()
 
+    username = "You"
+    
     while True:
         input_window.clear()
         input_window.addstr(1, 1, "Type your message: ")
@@ -36,7 +40,8 @@ def main(stdscr):
         if msg.lower() == "/exit":
             break
 
-        chat_history.append(f"You: {msg}")
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        chat_history.append(f"[{timestamp}] {username}: {msg}")
         sock.sendall(msg.encode('utf-8'))
         chat_window.clear()
         chat_window.addstr("\n".join(chat_history) + "\n")
