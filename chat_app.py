@@ -5,13 +5,18 @@ import datetime
 
 def receive_messages(sock, chat_window, chat_history):
     while True:
-        msg = sock.recv(1024).decode('utf-8')
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        chat_history.append(f"[{timestamp}] Friend: {msg}")
-        chat_window.clear()
-        chat_window.border()
-        chat_window.addstr(1, 2, "\n".join(chat_history) + "\n")
-        chat_window.refresh()
+        try:
+            msg = sock.recv(1024).decode('utf-8')
+            if not msg:
+                break
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            chat_history.append(f"[{timestamp}] Friend: {msg}")
+            chat_window.clear()
+            chat_window.border()
+            chat_window.addstr(1, 2, "\n".join(chat_history) + "\n")
+            chat_window.refresh()
+        except:
+            break
 
 def main(stdscr):
     curses.curs_set(1)
@@ -62,5 +67,6 @@ def main(stdscr):
         chat_window.addstr(1, 2, "\n".join(chat_history) + "\n")
         chat_window.refresh()
 
+    sock.close()
+
 curses.wrapper(main)
-sock.close()
