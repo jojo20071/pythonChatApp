@@ -1,4 +1,14 @@
 import curses
+import socket
+import threading
+
+def receive_messages(sock, chat_window, chat_history):
+    while True:
+        msg = sock.recv(1024).decode('utf-8')
+        chat_history.append(f"Friend: {msg}")
+        chat_window.clear()
+        chat_window.addstr("\n".join(chat_history) + "\n")
+        chat_window.refresh()
 
 def main(stdscr):
     curses.curs_set(1)
@@ -11,6 +21,11 @@ def main(stdscr):
 
     chat_history = []
 
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("localhost", 12345))
+
+    threading.Thread(target=receive_messages, args=(sock, chat_window, chat_history), daemon=True).start()
+
     while True:
         input_window.clear()
         input_window.addstr(1, 1, "Type your message: ")
@@ -22,8 +37,10 @@ def main(stdscr):
             break
 
         chat_history.append(f"You: {msg}")
+        sock.sendall(msg.encode('utf-8'))
         chat_window.clear()
         chat_window.addstr("\n".join(chat_history) + "\n")
         chat_window.refresh()
 
 curses.wrapper(main)
+sock.close()
