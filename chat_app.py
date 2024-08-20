@@ -7,6 +7,7 @@ import time
 
 CHAT_LOG_FILE = "chat_log.txt"
 USERNAME = ""
+USER_STATUS = {}
 
 def load_chat_history():
     if os.path.exists(CHAT_LOG_FILE):
@@ -49,7 +50,10 @@ def receive_messages(sock, chat_window, chat_history):
     while True:
         try:
             msg = sock.recv(1024).decode('utf-8')
-            log_message(chat_history, msg, sender="Friend")
+            if msg.startswith("/status"):
+                update_user_status(msg)
+            else:
+                log_message(chat_history, msg, sender="Friend")
             draw_chat_window(chat_window, chat_history)
         except:
             log_message(chat_history, "Connection lost. Trying to reconnect...")
@@ -72,6 +76,12 @@ def authenticate_user(input_window):
     input_window.clear()
     draw_input_window(input_window, "Enter username: ")
     USERNAME = input_window.getstr(1, 18, 20).decode('utf-8')
+
+def update_user_status(status_msg):
+    parts = status_msg.split()
+    username = parts[1]
+    status = parts[2]
+    USER_STATUS[username] = status
 
 def main(stdscr):
     curses.curs_set(1)
@@ -102,12 +112,19 @@ def main(stdscr):
         if msg.lower() == "/exit":
             break
         elif msg.lower() == "/help":
-            log_message(chat_history, "Commands: /exit, /help, /clear, /history")
+            log_message(chat_history, "Commands: /exit, /help, /clear, /history, /status, /msg")
         elif msg.lower() == "/clear":
             chat_history.clear()
             log_message(chat_history, "Chat cleared.")
         elif msg.lower() == "/history":
             log_message(chat_history, f"Chat History Loaded: {len(chat_history)} messages")
+        elif msg.startswith("/status"):
+            sock.sendall(f"/status {USERNAME} {msg.split()[1]}".encode('utf-8'))
+            log_message(chat_history, f"Status set to {msg.split()[1]}")
+        elif msg.startswith("/msg"):
+            recipient, private_msg = msg.split()[1], " ".join(msg.split()[2:])
+            sock.sendall(f"/msg {recipient} {private_msg}".encode('utf-8'))
+            log_message(chat_history, f"Private message to {recipient}: {private_msg}")
         else:
             log_message(chat_history, msg, sender=USERNAME)
             sock.sendall(msg.encode('utf-8'))
