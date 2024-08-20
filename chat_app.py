@@ -1,6 +1,9 @@
 import curses
+import socket
+import threading
 import datetime
 import os
+import time
 
 CHAT_LOG_FILE = "chat_log.txt"
 
@@ -41,6 +44,28 @@ def resize_windows(stdscr, chat_window, input_window):
     input_window.clear()
     stdscr.refresh()
 
+def receive_messages(sock, chat_window, chat_history):
+    while True:
+        try:
+            msg = sock.recv(1024).decode('utf-8')
+            log_message(chat_history, msg, sender="Friend")
+            draw_chat_window(chat_window, chat_history)
+        except:
+            log_message(chat_history, "Connection lost. Trying to reconnect...")
+            sock.close()
+            break
+
+def connect_to_server(chat_history):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    while True:
+        try:
+            sock.connect(("localhost", 12345))
+            log_message(chat_history, "Connected to server.")
+            return sock
+        except:
+            log_message(chat_history, "Failed to connect. Retrying in 5 seconds...")
+            time.sleep(5)
+
 def main(stdscr):
     curses.curs_set(1)
     stdscr.clear()
@@ -56,6 +81,9 @@ def main(stdscr):
 
     draw_chat_window(chat_window, chat_history)
     draw_input_window(input_window)
+
+    sock = connect_to_server(chat_history)
+    threading.Thread(target=receive_messages, args=(sock, chat_window, chat_history), daemon=True).start()
 
     while True:
         input_window.clear()
@@ -73,6 +101,7 @@ def main(stdscr):
             log_message(chat_history, f"Chat History Loaded: {len(chat_history)} messages")
         else:
             log_message(chat_history, msg)
+            sock.sendall(msg.encode('utf-8'))
 
         draw_chat_window(chat_window, chat_history)
         draw_input_window(input_window)
@@ -81,5 +110,7 @@ def main(stdscr):
             resize_windows(stdscr, chat_window, input_window)
             draw_chat_window(chat_window, chat_history)
             draw_input_window(input_window)
+
+    sock.close()
 
 curses.wrapper(main)
