@@ -6,6 +6,7 @@ import os
 import time
 
 CHAT_LOG_FILE = "chat_log.txt"
+USERNAME = ""
 
 def load_chat_history():
     if os.path.exists(CHAT_LOG_FILE):
@@ -66,6 +67,12 @@ def connect_to_server(chat_history):
             log_message(chat_history, "Failed to connect. Retrying in 5 seconds...")
             time.sleep(5)
 
+def authenticate_user(input_window):
+    global USERNAME
+    input_window.clear()
+    draw_input_window(input_window, "Enter username: ")
+    USERNAME = input_window.getstr(1, 18, 20).decode('utf-8')
+
 def main(stdscr):
     curses.curs_set(1)
     stdscr.clear()
@@ -74,6 +81,8 @@ def main(stdscr):
 
     chat_window = curses.newwin(height - 3, width, 0, 0)
     input_window = curses.newwin(3, width, height - 3, 0)
+
+    authenticate_user(input_window)
 
     chat_history = load_chat_history()
     if not chat_history:
@@ -100,7 +109,7 @@ def main(stdscr):
         elif msg.lower() == "/history":
             log_message(chat_history, f"Chat History Loaded: {len(chat_history)} messages")
         else:
-            log_message(chat_history, msg)
+            log_message(chat_history, msg, sender=USERNAME)
             sock.sendall(msg.encode('utf-8'))
 
         draw_chat_window(chat_window, chat_history)
