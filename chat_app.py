@@ -1,106 +1,85 @@
 import curses
-import logging
-import os
-import socket
-import threading
 import datetime
+import os
 
-def setup_logging():
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    logging.basicConfig(filename='logs/chat_app.log', level=logging.DEBUG, 
-                        format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+CHAT_LOG_FILE = "chat_log.txt"
 
-def authenticate_user(input_window, width):
-    input_window.clear()
-    input_window.addstr(1, 1, "Enter username: ")
-    input_window.refresh()
-    username = input_window.getstr(1, 18, width - 19).decode('utf-8')
-    logging.info(f"User '{username}' logged in.")
-    return username
+def load_chat_history():
+    if os.path.exists(CHAT_LOG_FILE):
+        with open(CHAT_LOG_FILE, 'r') as file:
+            return file.readlines()
+    return []
 
-def receive_messages(sock, chat_window):
-    while True:
-        try:
-            msg = sock.recv(1024).decode('utf-8')
-            chat_window.addstr(msg + "\n")
-            chat_window.refresh()
-        except:
-            break
+def save_chat_history(chat_history):
+    with open(CHAT_LOG_FILE, 'w') as file:
+        file.writelines(chat_history)
 
-def display_help(chat_window):
-    help_text = (
-        "/exit - Exit the chat\n"
-        "/help - Display this help message\n"
-        "/whisper [user] [message] - Send a private message to a user\n"
-        "/join [room] - Join a different chat room\n"
-        "/list - List all available chat rooms\n"
-    )
-    chat_window.addstr(help_text)
+def log_message(chat_history, msg, sender="You"):
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+    chat_history.append(f"[{timestamp}] {sender}: {msg}\n")
+    save_chat_history(chat_history)
+
+def draw_chat_window(chat_window, chat_history):
+    chat_window.clear()
+    chat_window.border()
+    chat_window.addstr(1, 2, "".join(chat_history[-(chat_window.getmaxyx()[0] - 3):]))
     chat_window.refresh()
+
+def draw_input_window(input_window, prompt="Type your message: "):
+    input_window.clear()
+    input_window.border()
+    input_window.addstr(1, 1, prompt)
+    input_window.refresh()
+
+def resize_windows(stdscr, chat_window, input_window):
+    height, width = stdscr.getmaxyx()
+    chat_window.resize(height - 3, width)
+    input_window.resize(3, width)
+    input_window.mvwin(height - 3, 0)
+    stdscr.clear()
+    chat_window.clear()
+    input_window.clear()
+    stdscr.refresh()
 
 def main(stdscr):
     curses.curs_set(1)
     stdscr.clear()
-    setup_logging()
 
     height, width = stdscr.getmaxyx()
 
-    chat_window = curses.newwin(height - 8, width, 0, 0)
-    input_window = curses.newwin(3, width, height - 5, 0)
-    status_window = curses.newwin(5, width, height - 8, 0)
+    chat_window = curses.newwin(height - 3, width, 0, 0)
+    input_window = curses.newwin(3, width, height - 3, 0)
 
-    chat_window.scrollok(True)
-    chat_window.border()
-    input_window.border()
-    status_window.border()
+    chat_history = load_chat_history()
+    if not chat_history:
+        chat_history.append("Welcome to the Python Chat!\n")
 
-    username = authenticate_user(input_window, width)
-    user_info = f"Logged in as: {username}"
-    status_window.addstr(1, 1, user_info)
-    status_window.refresh()
-
-    chat_room = "Main"
-    status_window.addstr(2, 1, f"Chat Room: {chat_room}")
-    status_window.refresh()
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(("localhost", 12345))
-
-    threading.Thread(target=receive_messages, args=(sock, chat_window), daemon=True).start()
+    draw_chat_window(chat_window, chat_history)
+    draw_input_window(input_window)
 
     while True:
         input_window.clear()
-        input_window.addstr(1, 1, f"{username}: ")
-        input_window.refresh()
-
-        msg = input_window.getstr(1, len(username) + 2, width - len(username) - 3).decode('utf-8')
+        draw_input_window(input_window)
+        msg = input_window.getstr(1, 18, width - 19).decode('utf-8')
 
         if msg.lower() == "/exit":
-            logging.info(f"User '{username}' exited the chat.")
             break
         elif msg.lower() == "/help":
-            display_help(chat_window)
-            continue
-        elif msg.startswith("/whisper "):
-            target, private_msg = msg[9:].split(' ', 1)
-            formatted_msg = f"(Private) {username} to {target}: {private_msg}"
-        elif msg.startswith("/join "):
-            chat_room = msg[6:]
-            status_window.addstr(2, 1, f"Chat Room: {chat_room}")
-            status_window.refresh()
-            formatted_msg = f"{username} joined {chat_room}"
-        elif msg.lower() == "/list":
-            formatted_msg = "Available chat rooms: Main, Sports, Movies, Technology"
+            log_message(chat_history, "Commands: /exit, /help, /clear, /history")
+        elif msg.lower() == "/clear":
+            chat_history.clear()
+            log_message(chat_history, "Chat cleared.")
+        elif msg.lower() == "/history":
+            log_message(chat_history, f"Chat History Loaded: {len(chat_history)} messages")
         else:
-            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-            formatted_msg = f"[{timestamp}] {username} ({chat_room}): {msg}"
-        
-        sock.sendall(formatted_msg.encode('utf-8'))
-        logging.info(formatted_msg)
-        
-        chat_window.addstr(formatted_msg + "\n")
-        chat_window.refresh()
+            log_message(chat_history, msg)
+
+        draw_chat_window(chat_window, chat_history)
+        draw_input_window(input_window)
+
+        if stdscr.getch() == curses.KEY_RESIZE:
+            resize_windows(stdscr, chat_window, input_window)
+            draw_chat_window(chat_window, chat_history)
+            draw_input_window(input_window)
 
 curses.wrapper(main)
-sock.close()
