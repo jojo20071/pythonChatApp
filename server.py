@@ -1,5 +1,6 @@
 import socket
 import threading
+import os
 
 clients = {}
 lock = threading.Lock()
@@ -21,6 +22,9 @@ def handle_client(client_sock):
             if message.startswith(b"/msg"):
                 _, recipient, msg = message.decode('utf-8').split(' ', 2)
                 send_private_message(client_sock, recipient, msg)
+            elif message.startswith(b"/file"):
+                _, recipient, filename = message.decode('utf-8').split(' ', 2)
+                send_file(client_sock, recipient, filename)
             else:
                 broadcast(message, client_sock)
     except:
@@ -38,15 +42,17 @@ def send_private_message(sender_sock, recipient_name, msg):
         sender_name = clients[sender_sock]
         recipient_sock.sendall(f"[Private] {sender_name}: {msg}".encode('utf-8'))
 
+def send_file(sender_sock, recipient_name, filename):
+    with lock:
+        recipient_sock = next((sock for sock, name in clients.items() if name == recipient_name), None)
+    if recipient_sock:
+        sender_name = clients[sender_sock]
+        if os.path.exists(filename):
+            with open(filename, 'rb') as f:
+                file_data = f.read()
+            recipient_sock.sendall(f"/file {sender_name} {filename}".encode('utf-8'))
+            recipient_sock.sendall(file_data)
+
 def main():
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_sock.bind(("localhost", 12345))
-    server_sock.listen(5)
-    print("Server started on port 12345")
-
-    while True:
-        client_sock, _ = server_sock.accept()
-        threading.Thread(target=handle_client, args=(client_sock,), daemon=True).start()
-
-if __name__ == "__main__":
-    main()
+   

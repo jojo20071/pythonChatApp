@@ -77,6 +77,7 @@ def connect_to_server(chat_history):
         try:
             sock.connect(("localhost", 12345))
             log_message(chat_history, "Connected to server.")
+            sock.sendall(USERNAME.encode('utf-8'))
             return sock
         except:
             log_message(chat_history, "Failed to connect. Retrying in 5 seconds...")
