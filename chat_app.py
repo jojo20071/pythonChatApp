@@ -36,14 +36,25 @@ def draw_input_window(input_window, prompt="Type your message: "):
     input_window.addstr(1, 1, prompt)
     input_window.refresh()
 
-def resize_windows(stdscr, chat_window, input_window):
+def draw_status_window(status_window):
+    status_window.clear()
+    status_window.border()
+    status_window.addstr(1, 1, "Active Users:", curses.color_pair(1))
+    for idx, (user, status) in enumerate(USER_STATUS.items()):
+        status_window.addstr(idx + 2, 1, f"{user}: {status}", curses.color_pair(1))
+    status_window.refresh()
+
+def resize_windows(stdscr, chat_window, input_window, status_window):
     height, width = stdscr.getmaxyx()
-    chat_window.resize(height - 3, width)
-    input_window.resize(3, width)
+    chat_window.resize(height - 3, width - 20)
+    input_window.resize(3, width - 20)
     input_window.mvwin(height - 3, 0)
+    status_window.resize(height - 3, 20)
+    status_window.mvwin(0, width - 20)
     stdscr.clear()
     chat_window.clear()
     input_window.clear()
+    status_window.clear()
     stdscr.refresh()
 
 def receive_messages(sock, chat_window, chat_history):
@@ -85,12 +96,15 @@ def update_user_status(status_msg):
 
 def main(stdscr):
     curses.curs_set(1)
-    stdscr.clear()
+    curses.start_color()
+    curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
 
+    stdscr.clear()
     height, width = stdscr.getmaxyx()
 
-    chat_window = curses.newwin(height - 3, width, 0, 0)
-    input_window = curses.newwin(3, width, height - 3, 0)
+    chat_window = curses.newwin(height - 3, width - 20, 0, 0)
+    input_window = curses.newwin(3, width - 20, height - 3, 0)
+    status_window = curses.newwin(height - 3, 20, 0, width - 20)
 
     authenticate_user(input_window)
 
@@ -100,6 +114,7 @@ def main(stdscr):
 
     draw_chat_window(chat_window, chat_history)
     draw_input_window(input_window)
+    draw_status_window(status_window)
 
     sock = connect_to_server(chat_history)
     threading.Thread(target=receive_messages, args=(sock, chat_window, chat_history), daemon=True).start()
@@ -107,7 +122,7 @@ def main(stdscr):
     while True:
         input_window.clear()
         draw_input_window(input_window)
-        msg = input_window.getstr(1, 18, width - 19).decode('utf-8')
+        msg = input_window.getstr(1, 18, width - 39).decode('utf-8')
 
         if msg.lower() == "/exit":
             break
@@ -131,11 +146,13 @@ def main(stdscr):
 
         draw_chat_window(chat_window, chat_history)
         draw_input_window(input_window)
+        draw_status_window(status_window)
 
         if stdscr.getch() == curses.KEY_RESIZE:
-            resize_windows(stdscr, chat_window, input_window)
+            resize_windows(stdscr, chat_window, input_window, status_window)
             draw_chat_window(chat_window, chat_history)
             draw_input_window(input_window)
+            draw_status_window(status_window)
 
     sock.close()
 
