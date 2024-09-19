@@ -1,6 +1,7 @@
 # Chat Application
 
 A terminal-based chat application by Johannes Häderle.
+![Screenshot 2024-08-21 154344](https://github.com/user-attachments/assets/7aed310e-9fc0-4ba6-8357-7d575931802d)
 
 ## Features
 
